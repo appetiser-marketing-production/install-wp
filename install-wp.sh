@@ -24,7 +24,7 @@ check_blank() {
       ;;
     *)
       echo "$var_name is set to: $value"
-      ;;-
+      ;;
   esac
 }
 
@@ -87,7 +87,7 @@ foldername=${4:-$(read -p "Enter folder name: " tmp && echo $tmp)}
 check_blank "$foldername" "Folder name"
 
 # Create the directory
-udo -u www-data mkdir -p "$web_root/$foldername"
+sudo -u www-data mkdir -p "$web_root/$foldername"
 case $? in
   0)
     echo "Directory $web_root/$foldername created successfully."
