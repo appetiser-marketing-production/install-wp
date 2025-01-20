@@ -87,7 +87,7 @@ foldername=${4:-$(read -p "Enter folder name: " tmp && echo $tmp)}
 check_blank "$foldername" "Folder name"
 
 # Create the directory
-sudo mkdir -p "$web_root/$foldername"
+udo -u www-data mkdir -p "$web_root/$foldername"
 case $? in
   0)
     echo "Directory $web_root/$foldername created successfully."
@@ -101,7 +101,7 @@ case $? in
     ;;
 esac
 
-sudo chmod -R 775 "$web_root/$foldername"
+sudo -u www-data chmod -R 775 "$web_root/$foldername"
 cd "$web_root/$foldername" || { echo "Failed to navigate to $web_root/$foldername. Exiting."; exit 1; }
 
 # Prompt for database name prefix
