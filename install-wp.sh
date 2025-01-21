@@ -1,6 +1,9 @@
 #!/bin/bash
 
-LOGFILE="/var/log/staging_install_$(whoami)_$(date +'%Y%m%d_%H%M%S').log"
+# Disable Xdebug (has no effect if Xdebug is not installed)
+export XDEBUG_MODE=off
+
+LOGFILE="/var/log/install-wp_$(whoami)_$(date +'%Y%m%d_%H%M%S').log"
 
 log_action() {
   local result=$?
@@ -29,7 +32,7 @@ check_blank() {
 }
 
 echo "Usage: $0"
-echo "Or you can center the details."
+echo "Prepare the installation details."
 echo "For more information, visit: https://example.com/documentation"
 
 # Check if wp-cli is installed
@@ -81,6 +84,9 @@ base_url=${3:-$(read -p "Enter base URL (e.g., https://localhost/): " tmp && ech
 #check for blank
 check_blank "$base_url" "Base URL"
 
+# Remove trailing slash from base_url if present
+base_url=${base_url%/}
+
 # Prompt for folder name
 foldername=${4:-$(read -p "Enter folder name: " tmp && echo $tmp)}
 #check for blank
@@ -106,7 +112,7 @@ cd "$web_root/$foldername" || { echo "Failed to navigate to $web_root/$foldernam
 
 # Prompt for database name prefix
 
-dbprefix=$(read -p "Enter database name prefix (default: wp): " tmp && echo "${tmp:-wp}")
+dbprefix=$(read -p "Enter database name prefix [default: wp, Do not include the underscore \"_\"]: " tmp && echo "${tmp:-wp}")
 
 dbname="${dbprefix}_${foldername}"
 echo "Database name is set to: $dbname"
@@ -158,9 +164,8 @@ adminemail=${8:-$(read -p "Enter admin email: " tmp && echo $tmp)}
 check_blank "$adminemail" "Admin Email"
 
 # Run commands as www-data
-sudo -u www-data bash <<EOF
-# Download WordPress core
-wp core download
+echo "Downloading WordPress core..."
+sudo -u www-data wp core download
 case $? in
   0)
     echo "Core downloaded."
@@ -173,8 +178,8 @@ case $? in
     ;;
 esac
 
-# Create wp-config.php with database details
-wp config create --dbname="$dbname" --dbuser="$dbuser" --dbpass="$dbpass"
+echo "Creating wp-config.php..."
+sudo -u www-data wp config create --dbname="$dbname" --dbuser="$dbuser" --dbpass="$dbpass"
 case $? in
   0)
     echo "Config created."
@@ -187,8 +192,8 @@ case $? in
     ;;
 esac
 
-# Create the database
-wp db create
+echo "Creating the database..."
+sudo -u www-data wp db create
 case $? in
   0)
     echo "Database created."
@@ -201,8 +206,9 @@ case $? in
     ;;
 esac
 
-# Install WordPress
-wp core install --url="$url" --title="$title" --admin_user="$adminuser" --admin_password="$adminpass" --admin_email="$adminemail"
+echo "Installing WordPress..."
+sudo -u www-data wp core install --url="$url" --title="$title" --admin_user="$adminuser" --admin_password="$adminpass" --admin_email="$adminemail"
+
 case $? in
   0)
     echo "Core installed."
@@ -214,7 +220,6 @@ case $? in
     exit 1
     ;;
 esac
-EOF
 
 # Set proper permissions
 echo "Setting proper permissions..."
