@@ -179,11 +179,12 @@ case $? in
 esac
 
 echo "Creating wp-config.php..."
-sudo -u www-data wp config create --dbname="$dbname" --dbuser="$dbuser" --dbpass="$dbpass"
+sudo -u www-data wp config create --dbname="$dbname" --dbuser="$dbuser" --dbpass="$dbpass" --dbprefix="${dbprefix}_"
 case $? in
   0)
-    echo "Config created."
-    log_action "Done" "WordPress config created."
+
+    echo "Config created with database table prefix: ${dbprefix}_"
+    log_action "Done" "WordPress config created with database table prefix: ${dbprefix}_."
     ;;
   *)
     echo "Failed to create wp-config.php."
