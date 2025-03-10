@@ -1,85 +1,64 @@
-# WordPress Installation Script
+# 🚀 WordPress Installation Script
 
-## Introduction
+## 📌 Introduction
 
-This script automates the process of installing a WordPress website. Designed for flexibility and ease of use, it allows you to set up WordPress in a web server's root directory, configure the database, and ensure proper file permissions in just a few steps. Whether you're setting up a new staging environment or deploying a production-ready instance, this script ensures consistency and accuracy in your WordPress installation.
-
----
-
-## Requisites
-
-Before running this script, ensure the following prerequisites are met:
-
-1. **WP-CLI**:
-   - WP-CLI must be installed and accessible in the environment. For installation instructions, visit [WP-CLI Installation Guide](https://wp-cli.org/#installing).
-
-2. **SSH Access**:
-   - Secure Shell (SSH) access to the server where WordPress will be installed.
-
-3. **User with Sudo Privileges**:
-   - The script requires a user with `sudo` privileges to execute certain commands, such as creating directories and setting permissions.
-
-4. **MySQL/MariaDB Client**:
-   - The MySQL or MariaDB client must be installed for database-related operations.
-
-5. **Valid Database Credentials**:
-   - Ensure you have a valid database username and password with sufficient privileges to create and manage databases.
-
-6. **Web Server**:
-   - A functional web server (e.g., Apache or Nginx) configured to serve files from the target directory.
-
-7. **PHP**:
-   - PHP must be installed, including required extensions for WordPress.
+This script **automates** the installation of WordPress by setting up the web server, configuring the database, and ensuring proper file permissions. Whether you're deploying a **staging** or **production** environment, this script guarantees a **fast, consistent, and optimized** WordPress installation.
 
 ---
 
-## Steps and Procedures
+## 📝 Version Information
+- **Version:** 1.1.0
+- **Author:** Landing Page Team
+- **Author URI:** [https://appetiser.com.au/](https://appetiser.com.au/)
 
-### 1. **Initialization and Logging**
-- A log file is dynamically created in `/var/log` with the current timestamp for detailed tracking of each step executed during the installation.
+---
+## 🔥 What's New in Version 1.1.0
 
-### 2. **Environment Validation**
-- Verifies if WP-CLI is installed. If it's not available, the script notifies the user and provides instructions for installation.
-
-### 3. **User Inputs**
-The script collects critical setup details, including:
-- **Web server root directory**: Defaults to `/var/www/html` if not specified.
-- **Database credentials**: Username and password for the database.
-- **Base URL**: The URL of the site (e.g., `https://example.com`).
-- **Folder name**: Name of the folder where WordPress will be installed.
-- **Database name prefix**: Defaults to `wp` but can be customized.
-- **Site details**:
-  - Site title
-  - Admin username, password, and email
-
-### 4. **Database Validation**
-- Checks the validity of the provided database credentials.
-- Ensures the database name is unique, prompting the user to drop the existing database if necessary.
-
-### 5. **Directory Setup**
-- Creates the specified folder under the web root directory.
-- Ensures proper permissions to proceed with the installation.
-
-### 6. **WordPress Core Installation**
-- Downloads the WordPress core files.
-- Creates the `wp-config.php` file using the provided database details.
-- Creates the database and completes the WordPress installation with the provided site and admin credentials.
-
-### 7. **Permission Settings**
-- Adjusts directory and file permissions to ensure security and proper web server access:
-  - Directories: `755`
-  - Files: `644`
-
-### 8. **Completion**
-- Displays the following:
-  - The URL of the newly installed WordPress site.
-  - The root directory where the site's files are located.
-- Logs the completion of the installation process.
+✅ **Config File Support:** The script now loads configurations from `install-wp.conf` to enable automated installations.  
+✅ **Improved Logging:** All installation steps are logged for troubleshooting.  
+✅ **User-Friendly Prompts:** If values are missing from the config, the script will **prompt interactively** instead of failing.  
 
 ---
 
-## Usage Example
+## 🛠️ Requisites
 
-Run the script using the following command:
-```bash
-./install_wordpress.sh
+Before running this script, ensure the following requirements are met:
+
+1️⃣ **WP-CLI** - Installed and accessible. [Install WP-CLI](https://wp-cli.org/#installing)  
+2️⃣ **SSH Access** - Required to run this script remotely.  
+3️⃣ **Sudo Privileges** - User must have `sudo` permissions to modify directories and set permissions.  
+4️⃣ **MySQL/MariaDB Client** - Needed for database operations.  
+5️⃣ **Web Server** - Apache or Nginx should be set up and running.  
+6️⃣ **PHP Installed** - Ensure PHP and required extensions are installed.  
+
+---
+
+## 📝 Configuration File (`install-wp.conf`)
+
+The script **automatically loads** values from `install-wp.conf`. If the file is missing, the script will **prompt for input**.
+
+### Example `install-wp.conf`:
+```ini
+# Install WP Configuration File
+
+# Web root directory
+WEB_ROOT="/var/www/html"
+
+# Database credentials
+DB_USER="wpuser"
+DB_PASS="wppassword"
+
+# Base URL (without trailing slash)
+BASE_URL="https://example.com"
+
+# Folder name for WordPress installation
+FOLDER_NAME="mywp"
+
+# Database name prefix (without underscore)
+DB_PREFIX="wp"
+
+# WordPress site details
+SITE_TITLE="My WordPress Site"
+ADMIN_USER="admin"
+ADMIN_PASS="securepassword"
+ADMIN_EMAIL="admin@example.com"

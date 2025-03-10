@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Disable Xdebug (has no effect if Xdebug is not installed)
-export XDEBUG_MODE=off
+# Get script directory
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+CONFIG_FILE="$SCRIPT_DIR/install-wp.conf"
 
 LOGFILE="/var/log/install-wp_$(whoami)_$(date +'%Y%m%d_%H%M%S').log"
 
+# Function to log actions
 log_action() {
   local result=$?
   local time_stamp
@@ -20,219 +22,171 @@ check_blank() {
 
   case "$value" in
     "")
-      echo "Error: $var_name cannot be blank. Please provide a valid $var_name."
-      log_action "Error" "$var_name cannot be blank. Please provide a valid $var_name."
-      
+      echo -e "❌ Error: $var_name cannot be blank. Please provide a valid $var_name."
+      log_action "ERROR" "$var_name cannot be blank. Please provide a valid $var_name."
       exit 1
       ;;
     *)
-      echo "$var_name is set to: $value"
+      echo -e "✅ $var_name is set to: $value"
       ;;
   esac
 }
 
-echo "Usage: $0"
-echo "Prepare the installation details."
-echo "For more information, visit: https://example.com/documentation"
+# Load config file if exists
+if [ -f "$CONFIG_FILE" ]; then
+  source "$CONFIG_FILE"
+  echo -e "⚙️  Configuration loaded from $CONFIG_FILE"
+else
+  echo -e "⚠️  Configuration file not found. Running interactively."
+fi
+
+echo -e "🔧 Preparing the installation details."
+echo -e "📖 For more information, Read the readme.md file."
 
 # Check if wp-cli is installed
 if ! which wp > /dev/null; then
   errormsg="WP CLI could not be found. Please install WP-CLI before running this script."
-  echo "$errormsg"
-  echo "For installation instructions, visit: https://wp-cli.org/#installing"
+  echo -e "❌ $errormsg"
+  echo -e "🔗 For installation instructions, visit: https://wp-cli.org/#installing"
   log_action "ERROR" "$errormsg"
   exit 1
 fi
 
 log_action "CHECK" "WP CLI INSTALLED"
 
-web_root=${1:-$(read -p "Enter the web server's root directory (default: /var/www/html): " tmp && echo "${tmp:-/var/www/html}")}
+# Prompt or use config for web root
+web_root=${WEB_ROOT:-$(read -p "Enter the web server's root directory (default: /var/www/html): " tmp && echo "${tmp:-/var/www/html}")}
 
-# Navigate to the specified web server's root directory
+# Navigate to the web server's root directory
 cd "$web_root" || {
     errormsg="Failed to navigate to $web_root. Ensure the directory exists."
-    echo "$errormsg"
+    echo -e "❌ $errormsg"
     log_action "ERROR" "$errormsg"
     exit 1
 }
 log_action "CHECK" "Webroot is accessible"
 
-# Prompt for database credentials
-dbuser=${1:-$(read -p "Enter database username: " tmp && echo $tmp)}
-#check for blank
+# Prompt or use config for database credentials
+dbuser=${DB_USER:-$(read -p "Enter database username: " tmp && echo $tmp)}
 check_blank "$dbuser" "DB Username"
-dbpass=${2:-$(read -p "Enter database password: " tmp && echo $tmp)}
-#check for blank
+
+dbpass=${DB_PASS:-$(read -p "Enter database password: " tmp && echo $tmp)}
 check_blank "$dbpass" "DB Password"
 
 # Check MySQL credentials
 case $(mysql -u"$dbuser" -p"$dbpass" -e "QUIT" >/dev/null 2>&1; echo $?) in
   0)
-    echo "Database credentials are valid."
+    echo -e "✅ Database credentials are valid."
     log_action "CHECK" "Database credentials are valid"
     ;;
   *)
-    errormsg="Failed to connect to the database using the credentials provided. Please check your username and password."
-    echo "$errormsg"
+    errormsg="Failed to connect to the database using the credentials provided."
+    echo -e "❌ $errormsg"
     log_action "ERROR" "$errormsg"
     exit 1
     ;;
 esac
 
-# Prompt for base URL
-base_url=${3:-$(read -p "Enter base URL (e.g., https://localhost/): " tmp && echo $tmp)}
-#check for blank
+# Prompt or use config for base URL
+base_url=${BASE_URL:-$(read -p "Enter base URL (e.g., https://localhost): " tmp && echo $tmp)}
 check_blank "$base_url" "Base URL"
+base_url=${base_url%/} # Remove trailing slash if present
 
-# Remove trailing slash from base_url if present
-base_url=${base_url%/}
-
-# Prompt for folder name
-foldername=${4:-$(read -p "Enter folder name: " tmp && echo $tmp)}
-#check for blank
+# Prompt or use config for folder name
+foldername=${FOLDER_NAME:-$(read -p "Enter folder name: " tmp && echo $tmp)}
 check_blank "$foldername" "Folder name"
 
 # Create the directory
 sudo -u www-data mkdir -p "$web_root/$foldername"
 case $? in
   0)
-    echo "Directory $web_root/$foldername created successfully."
+    echo -e "📂 Directory $web_root/$foldername created successfully."
     log_action "CHECK" "Directory $web_root/$foldername created successfully."
     ;;
   *)
-    errormsg="Failed to create directory $web_root/$foldername. Ensure you have sufficient permissions."
-    echo "$errormsg"
+    errormsg="Failed to create directory $web_root/$foldername."
+    echo -e "❌ $errormsg"
     log_action "ERROR" "$errormsg"
     exit 1
     ;;
 esac
 
 sudo -u www-data chmod -R 775 "$web_root/$foldername"
-cd "$web_root/$foldername" || { echo "Failed to navigate to $web_root/$foldername. Exiting."; exit 1; }
+cd "$web_root/$foldername" || { echo -e "❌ Failed to navigate to $web_root/$foldername. Exiting."; exit 1; }
 
-# Prompt for database name prefix
+# Download Wordpress core.
+echo -e "📥 Downloading WordPress core..."
+sudo -u www-data wp core download --path="$web_root/$foldername"
+case $? in
+  0)
+    echo -e "✅ WordPress core downloaded successfully."
+    log_action "Done" "WordPress core downloaded."
+    ;;
+  *)
+    echo -e "❌ Failed to download WordPress core."
+    log_action "ERROR" "Failed to download WordPress core."
+    exit 1
+    ;;
+esac
 
-dbprefix=$(read -p "Enter database name prefix [default: wp, Do not include the underscore \"_\"]: " tmp && echo "${tmp:-wp}")
+# Prompt or use config for database name prefix
+dbprefix=${DB_PREFIX:-$(read -p "Enter database name prefix [default: wp]: " tmp && echo "${tmp:-wp}")}
+check_blank "$dbprefix" "Database Name Prefix"
 
 dbname="${dbprefix}_${foldername}"
-echo "Database name is set to: $dbname"
+echo -e "🗄️  Database name is set to: $dbname"
 
 # Validate the database name
 case $(mysql -u"$dbuser" -p"$dbpass" -e "USE $dbname;" 2>/dev/null; echo $?) in
   0)
-    echo "Warning!!! Database $dbname already exists."
+    echo -e "⚠️  Database $dbname already exists."
     read -p "Do you want to drop the existing database? (yes/no): " drop_confirm
     case "$drop_confirm" in
       [Yy][Ee][Ss]|[Yy])
         if mysql -u"$dbuser" -p"$dbpass" -e "DROP DATABASE $dbname;" 2>/dev/null; then
-          echo "Database $dbname has been dropped successfully."
+          echo -e "🗑️  Database $dbname has been dropped successfully."
         else
-          echo "Failed to drop database $dbname. Ensure you have sufficient permissions."
+          echo -e "❌ Failed to drop database $dbname."
           exit 1
         fi
         ;;
       *)
-        errormsg="Error: Database $dbname already exists. Please choose a different name."
-        echo "$errormsg"
+        errormsg="Error: Database $dbname already exists."
+        echo -e "❌ $errormsg"
         log_action "ERROR" "$errormsg"
         exit 1
         ;;
     esac
     ;;
   *)
-    echo "Database name $dbname is valid and available."
-    log_action "CHECK" "Database name $dbname is valid and available."
+    echo -e "✅ Database name $dbname is available."
+    log_action "CHECK" "Database name $dbname is available."
     ;;
 esac
 
 url="$base_url/$foldername"
 
-title=${5:-$(read -p "Enter site title: " tmp && echo $tmp)}
-#check for blank
-check_blank "$title" "Site title"
-
-adminuser=${6:-$(read -p "Enter admin username: " tmp && echo $tmp)}
-#check for blank
-check_blank "$adminuser" "Admin User"
-
-adminpass=${7:-$(read -p "Enter admin password: " tmp && echo $tmp && echo "")}
-#check for blank
-check_blank "$adminpass" "Admin Pass"
-
-adminemail=${8:-$(read -p "Enter admin email: " tmp && echo $tmp)}
-#check for blank
-check_blank "$adminemail" "Admin Email"
-
-# Run commands as www-data
-echo "Downloading WordPress core..."
-sudo -u www-data wp core download
-case $? in
-  0)
-    echo "Core downloaded."
-    log_action "Done" "WordPress core downloaded."
-    ;;
-  *)
-    echo "Failed to download WordPress core."
-    log_action "ERROR" "Failed to download WordPress core."
-    exit 1
-    ;;
-esac
-
-echo "Creating wp-config.php..."
+echo -e "🔧 Creating wp-config.php..."
 sudo -u www-data wp config create --dbname="$dbname" --dbuser="$dbuser" --dbpass="$dbpass" --dbprefix="${dbprefix}_"
-case $? in
-  0)
+echo -e "✅ Config created."
 
-    echo "Config created with database table prefix: ${dbprefix}_"
-    log_action "Done" "WordPress config created with database table prefix: ${dbprefix}_."
-    ;;
-  *)
-    echo "Failed to create wp-config.php."
-    log_action "ERROR" "Failed to create wp-config.php."
-    exit 1
-    ;;
-esac
-
-echo "Creating the database..."
+echo -e "🗄️  Creating database..."
 sudo -u www-data wp db create
-case $? in
-  0)
-    echo "Database created."
-    log_action "Done" "WordPress database created."
-    ;;
-  *)
-    echo "Failed to create the database."
-    log_action "ERROR" "Failed to create the database."
-    exit 1
-    ;;
-esac
+echo -e "✅ Database created."
 
-echo "Installing WordPress..."
-sudo -u www-data wp core install --url="$url" --title="$title" --admin_user="$adminuser" --admin_password="$adminpass" --admin_email="$adminemail"
-
-case $? in
-  0)
-    echo "Core installed."
-    log_action "Done" "WordPress core installed."
-    ;;
-  *)
-    echo "Failed to install WordPress core."
-    log_action "ERROR" "Failed to install WordPress core."
-    exit 1
-    ;;
-esac
+echo -e "🚀 Installing WordPress..."
+sudo -u www-data wp core install --url="$url" --title="${SITE_TITLE:-Default Site}" --admin_user="${ADMIN_USER:-admin}" --admin_password="${ADMIN_PASS:-password}" --admin_email="${ADMIN_EMAIL:-admin@example.com}"
+echo -e "✅ WordPress installed."
 
 # Set proper permissions
-echo "Setting proper permissions..."
+echo -e "🔑 Setting proper permissions..."
 sudo -u www-data find "$web_root/$foldername" -type d -exec chmod 755 {} \;
 sudo -u www-data find "$web_root/$foldername" -type f -exec chmod 644 {} \;
-echo "Done"
-log_action "Done" "WordPress folder and file permissions set: Directories (755), Files (644)."
+echo -e "✅ Permissions set."
 
-echo "#### WordPress installation complete."
-echo "Site URL: $url"
-echo "Site Root Directory: $web_root/$foldername"
-log_action "Completed" "Wordpress installation completed."
+echo -e "🎉 WordPress installation complete!"
+echo -e "🌐 Site URL: $url"
+echo -e "📂 Site Root Directory: $web_root/$foldername"
+log_action "COMPLETED" "WordPress installation finished."
 
-# Echo the log file path at the end of the script
-echo "Log file created at: $LOGFILE";
+echo -e "📝 Log file saved at: $LOGFILE"
